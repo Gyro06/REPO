@@ -39,3 +39,12 @@ class OpenPullRequestInput(BaseModel):
     base: str = Field(default="main", description="Target base branch")
     body: str = Field(default="", description="PR body")
     draft: bool = Field(default=True, description="Create PR as draft")
+
+class ListRepoTreeInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    path: str = Field(default="", description="Optional directory path")
+    ref: str | None = Field(default=None, description="Branch, tag, or commit SHA")
+
+class GetPullRequestInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    pull_number: int = Field(description="Pull request number")    

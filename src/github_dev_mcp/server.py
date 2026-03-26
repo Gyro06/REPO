@@ -7,6 +7,8 @@ from github_dev_mcp.tools import (
     create_branch,
     commit_files,
     open_pull_request,
+    get_pull_request,
+    list_repo_tree,
 )
 
 
@@ -17,8 +19,9 @@ def build_server() -> FastMCP:
         name="GitHub Dev MCP",
         instructions=(
             "Tools for reading files, searching code, creating branches, "
-            "committing multiple file changes in a single commit, and opening "
-            "pull requests in approved GitHub repositories."
+            "listing repository contents, committing multiple file changes "
+            "in a single commit, and opening or retrieving pull requests "
+            "in approved GitHub repositories."
         ),
     )
 
@@ -27,6 +30,8 @@ def build_server() -> FastMCP:
     create_branch.register(mcp)
     commit_files.register(mcp)
     open_pull_request.register(mcp)
+    get_pull_request.register(mcp)
+    list_repo_tree.register(mcp)
 
     return mcp
 

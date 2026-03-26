@@ -7,6 +7,40 @@ from github_dev_mcp.config import settings
 
 
 class GitHubClient:
+
+    def get_pull_request(self, repo_full_name: str, pull_number: int) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(f"/repos/{owner}/{repo}/pulls/{pull_number}")
+            response.raise_for_status()
+            return response.json()
+
+    def list_directory(self, repo_full_name: str, path: str = "", ref: str | None = None) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        params = {"ref": ref} if ref else None
+        endpoint = f"/repos/{owner}/{repo}/contents/{path}" if path else f"/repos/{owner}/{repo}/contents"
+        with self._client() as client:
+            response = client.get(endpoint, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            if isinstance(data, dict):
+                data = [data]
+
+            return {
+                "path": path,
+                "ref": ref,
+                "entries": [
+                    {
+                        "name": item.get("name"),
+                        "path": item.get("path"),
+                        "type": item.get("type"),
+                        "sha": item.get("sha"),
+                    }
+                    for item in data
+                ],
+            }
+        
     def __init__(self) -> None:
         self.base_url = settings.github_api_url.rstrip("/")
         self.headers = {

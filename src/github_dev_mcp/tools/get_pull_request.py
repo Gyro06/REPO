@@ -1,0 +1,24 @@
+from github_dev_mcp.schemas.github import GetPullRequestInput
+from github_dev_mcp.services.audit_service import AuditService
+from github_dev_mcp.services.github_client import GitHubClient
+from github_dev_mcp.services.repo_policy_service import RepoPolicyService
+
+
+def register(mcp):
+    github = GitHubClient()
+    audit = AuditService()
+    policy = RepoPolicyService()
+
+    @mcp.tool(
+        name="get_pull_request",
+        description="Get a pull request from an allowed GitHub repository",
+    )
+    def get_pull_request(input: GetPullRequestInput) -> dict:
+        try:
+            policy.ensure_repo_allowed(input.repo_full_name)
+            result = github.get_pull_request(input.repo_full_name, input.pull_number)
+            audit.log("get_pull_request", input.repo_full_name, input.model_dump(), result, "success")
+            return result
+        except Exception as exc:
+            audit.log("get_pull_request", input.repo_full_name, input.model_dump(), None, "error", str(exc))
+            raise
