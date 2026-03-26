@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run GitHub Dev MCP",
+      "type": "python",
+      "request": "launch",
+      "module": "github_dev_mcp.server",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}\\.env"
+    }
+  ]
+}
