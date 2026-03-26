@@ -1,5 +1,7 @@
 from typing import Any
 
+from psycopg.types.json import Jsonb
+
 from github_dev_mcp.db import get_db
 
 
@@ -26,8 +28,8 @@ class AuditService:
                         tool_name,
                         repo_full_name,
                         actor,
-                        request_payload,
-                        response_payload,
+                        Jsonb(request_payload),
+                        Jsonb(response_payload) if response_payload is not None else None,
                         status,
                         error_message,
                     ),
