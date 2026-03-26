@@ -9,6 +9,9 @@ from github_dev_mcp.tools import (
     open_pull_request,
     get_pull_request,
     list_repo_tree,
+    list_pull_requests,
+    compare_branch_to_base,
+    list_pull_request_files,
 )
 
 
@@ -32,6 +35,9 @@ def build_server() -> FastMCP:
     open_pull_request.register(mcp)
     get_pull_request.register(mcp)
     list_repo_tree.register(mcp)
+    list_pull_requests.register(mcp)
+    compare_branch_to_base.register(mcp)
+    list_pull_request_files.register(mcp)
 
     return mcp
 

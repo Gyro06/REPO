@@ -8,6 +8,141 @@ from github_dev_mcp.config import settings
 
 class GitHubClient:
 
+    def find_open_pull_request_for_branch(
+        self,
+        repo_full_name: str,
+        head: str,
+        base: str,
+    ) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(
+                f"/repos/{owner}/{repo}/pulls",
+                params={
+                    "state": "open",
+                    "head": f"{owner}:{head}",
+                    "base": base,
+                    "per_page": 20,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "count": len(data),
+                "pull_requests": [
+                    {
+                        "number": pr["number"],
+                        "title": pr["title"],
+                        "state": pr["state"],
+                        "draft": pr.get("draft", False),
+                        "head": pr["head"]["ref"],
+                        "base": pr["base"]["ref"],
+                        "html_url": pr["html_url"],
+                    }
+                    for pr in data
+                ],
+            }
+
+    def list_pull_request_files(
+        self,
+        repo_full_name: str,
+        pull_number: int,
+        per_page: int = 100,
+    ) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(
+                f"/repos/{owner}/{repo}/pulls/{pull_number}/files",
+                params={"per_page": per_page},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "count": len(data),
+                "files": [
+                    {
+                        "filename": item.get("filename"),
+                        "status": item.get("status"),
+                        "additions": item.get("additions"),
+                        "deletions": item.get("deletions"),
+                        "changes": item.get("changes"),
+                        "blob_url": item.get("blob_url"),
+                        "raw_url": item.get("raw_url"),
+                        "patch": item.get("patch"),
+                    }
+                    for item in data
+                ],
+            }
+
+    def compare_refs(self, repo_full_name: str, base: str, head: str) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(f"/repos/{owner}/{repo}/compare/{base}...{head}")
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "status": data.get("status"),
+                "ahead_by": data.get("ahead_by"),
+                "behind_by": data.get("behind_by"),
+                "total_commits": data.get("total_commits"),
+                "html_url": data.get("html_url"),
+                "files": [
+                    {
+                        "filename": f.get("filename"),
+                        "status": f.get("status"),
+                        "additions": f.get("additions"),
+                        "deletions": f.get("deletions"),
+                        "changes": f.get("changes"),
+                    }
+                    for f in data.get("files", [])
+                ],
+                "commits": [
+                    {
+                        "sha": c.get("sha"),
+                        "message": c.get("commit", {}).get("message", "").splitlines()[0],
+                    }
+                    for c in data.get("commits", [])
+                ],
+            }
+
+    def list_pull_requests(
+        self,
+        repo_full_name: str,
+        state: str = "open",
+        sort: str = "created",
+        direction: str = "desc",
+        per_page: int = 20,
+    ) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(
+                f"/repos/{owner}/{repo}/pulls",
+                params={
+                    "state": state,
+                    "sort": sort,
+                    "direction": direction,
+                    "per_page": per_page,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "count": len(data),
+                "pull_requests": [
+                    {
+                        "number": pr["number"],
+                        "title": pr["title"],
+                        "state": pr["state"],
+                        "draft": pr.get("draft", False),
+                        "head": pr["head"]["ref"],
+                        "base": pr["base"]["ref"],
+                        "user": pr["user"]["login"],
+                        "html_url": pr["html_url"],
+                    }
+                    for pr in data
+                ],
+            }
+
     def get_pull_request(self, repo_full_name: str, pull_number: int) -> dict[str, Any]:
         owner, repo = repo_full_name.split("/", 1)
         with self._client() as client:

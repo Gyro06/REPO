@@ -1,0 +1,41 @@
+from github_dev_mcp.schemas.github import CheckExistingOpenPRInput
+from github_dev_mcp.services.audit_service import AuditService
+from github_dev_mcp.services.github_client import GitHubClient
+from github_dev_mcp.services.repo_policy_service import RepoPolicyService
+
+
+def register(mcp):
+    github = GitHubClient()
+    audit = AuditService()
+    policy = RepoPolicyService()
+
+    @mcp.tool(
+        name="check_existing_open_pr_for_branch",
+        description="Check whether an open pull request already exists for a head and base branch",
+    )
+    def check_existing_open_pr_for_branch(input: CheckExistingOpenPRInput) -> dict:
+        try:
+            policy.ensure_repo_allowed(input.repo_full_name)
+            result = github.find_open_pull_request_for_branch(
+                repo_full_name=input.repo_full_name,
+                head=input.head,
+                base=input.base,
+            )
+            audit.log(
+                "check_existing_open_pr_for_branch",
+                input.repo_full_name,
+                input.model_dump(),
+                result,
+                "success",
+            )
+            return result
+        except Exception as exc:
+            audit.log(
+                "check_existing_open_pr_for_branch",
+                input.repo_full_name,
+                input.model_dump(),
+                None,
+                "error",
+                str(exc),
+            )
+            raise

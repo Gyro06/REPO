@@ -47,4 +47,27 @@ class ListRepoTreeInput(BaseModel):
 
 class GetPullRequestInput(BaseModel):
     repo_full_name: str = Field(description="GitHub repository in owner/repo format")
-    pull_number: int = Field(description="Pull request number")    
+    pull_number: int = Field(description="Pull request number")
+
+
+class ListPullRequestsInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    state: str = Field(default="open", description="open, closed, or all")
+    sort: str = Field(default="created", description="created, updated, popularity, long-running")
+    direction: str = Field(default="desc", description="asc or desc")
+    per_page: int = Field(default=20, description="Maximum number of pull requests to return")
+
+class CompareBranchInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    base: str = Field(description="Base branch or ref")
+    head: str = Field(description="Head branch or ref")
+
+class ListPullRequestFilesInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    pull_number: int = Field(description="Pull request number")
+    per_page: int = Field(default=100, description="Maximum number of files to return")
+
+class CheckExistingOpenPRInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    head: str = Field(description="Source branch")
+    base: str = Field(default="main", description="Target base branch")
