@@ -4,4 +4,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .env
+# Local environment variables
+.env.local
+.env.*.local
 *.pyc
