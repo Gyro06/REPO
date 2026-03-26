@@ -38,6 +38,17 @@ def build_server() -> FastMCP:
     list_pull_requests.register(mcp)
     compare_branch_to_base.register(mcp)
     list_pull_request_files.register(mcp)
+    # PR tooling: status and updates
+    from github_dev_mcp.tools import get_combined_status_for_ref, update_pull_request
+
+    get_combined_status_for_ref.register(mcp)
+    update_pull_request.register(mcp)
+
+    # New PR/branch tools
+    from github_dev_mcp.tools import list_pull_request_commits, delete_branch
+
+    list_pull_request_commits.register(mcp)
+    delete_branch.register(mcp)
 
     return mcp
 

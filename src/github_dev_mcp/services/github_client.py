@@ -74,6 +74,47 @@ class GitHubClient:
                 ],
             }
 
+    def list_pull_request_commits(self, repo_full_name: str, pull_number: int, per_page: int = 100) -> list[dict[str, Any]]:
+        """List commits for a pull request, paginated.
+
+        Returns a normalized list of commits with keys: sha, message, author_name,
+        author_email, committer_name, committer_email, html_url, parents, committed_at
+        """
+        owner, repo = repo_full_name.split("/", 1)
+        commits: list[dict[str, Any]] = []
+        page = 1
+        with self._client() as client:
+            while True:
+                response = client.get(
+                    f"/repos/{owner}/{repo}/pulls/{pull_number}/commits",
+                    params={"per_page": per_page, "page": page},
+                )
+                response.raise_for_status()
+                data = response.json()
+                if not data:
+                    break
+                for entry in data:
+                    commit = entry.get("commit", {})
+                    author = commit.get("author") or {}
+                    committer = commit.get("committer") or {}
+                    commits.append(
+                        {
+                            "sha": entry.get("sha"),
+                            "message": commit.get("message"),
+                            "author_name": author.get("name"),
+                            "author_email": author.get("email"),
+                            "committer_name": committer.get("name"),
+                            "committer_email": committer.get("email"),
+                            "committed_at": commit.get("committer", {}).get("date"),
+                            "html_url": entry.get("html_url"),
+                            "parents": [p.get("sha") for p in entry.get("parents", [])],
+                        }
+                    )
+                if len(data) < per_page:
+                    break
+                page += 1
+        return commits
+
     def compare_refs(self, repo_full_name: str, base: str, head: str) -> dict[str, Any]:
         owner, repo = repo_full_name.split("/", 1)
         with self._client() as client:
@@ -216,6 +257,13 @@ class GitHubClient:
             response.raise_for_status()
             return response.json()
 
+    def get_branch_info(self, repo_full_name: str, branch: str) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(f"/repos/{owner}/{repo}/branches/{branch}")
+            response.raise_for_status()
+            return response.json()
+
     def get_branch_sha(self, repo_full_name: str, branch: str) -> str:
         return self.get_branch_ref(repo_full_name, branch)["object"]["sha"]
 
@@ -223,6 +271,146 @@ class GitHubClient:
         owner, repo = repo_full_name.split("/", 1)
         with self._client() as client:
             response = client.get(f"/repos/{owner}/{repo}/git/commits/{commit_sha}")
+            response.raise_for_status()
+            return response.json()
+
+    def get_repo(self, repo_full_name: str) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            response = client.get(f"/repos/{owner}/{repo}")
+            response.raise_for_status()
+            return response.json()
+
+    def delete_branch(self, repo_full_name: str, branch_name: str) -> dict[str, Any]:
+        """Delete a branch ref. Caller must perform safety checks before calling.
+
+        Returns a normalized dict with deletion outcome and former SHA.
+        """
+        owner, repo = repo_full_name.split("/", 1)
+        # get the ref (will raise if not found)
+        ref = self.get_branch_ref(repo_full_name, branch_name)
+        former_sha = ref.get("object", {}).get("sha")
+
+        with self._client() as client:
+            response = client.delete(f"/repos/{owner}/{repo}/git/refs/heads/{branch_name}")
+            # GitHub returns 204 No Content on success
+            if response.status_code in (200, 202, 204):
+                return {
+                    "deleted": True,
+                    "repo_full_name": repo_full_name,
+                    "branch_name": branch_name,
+                    "former_sha": former_sha,
+                }
+            else:
+                response.raise_for_status()
+
+    def list_pull_request_files(self, repo_full_name: str, pull_number: int, per_page: int = 100) -> list[dict[str, Any]]:
+        owner, repo = repo_full_name.split("/", 1)
+        files: list[dict[str, Any]] = []
+        page = 1
+        with self._client() as client:
+            while True:
+                response = client.get(f"/repos/{owner}/{repo}/pulls/{pull_number}/files", params={"per_page": per_page, "page": page})
+                response.raise_for_status()
+                data = response.json()
+                if not data:
+                    break
+                for entry in data:
+                    files.append(
+                        {
+                            "sha": entry.get("sha"),
+                            "filename": entry.get("filename"),
+                            "status": entry.get("status"),
+                            "additions": entry.get("additions"),
+                            "deletions": entry.get("deletions"),
+                            "changes": entry.get("changes"),
+                            "blob_url": entry.get("blob_url"),
+                            "raw_url": entry.get("raw_url"),
+                            "contents_url": entry.get("contents_url"),
+                            "patch": entry.get("patch"),
+                        }
+                    )
+                # stop if fewer than per_page returned
+                if len(data) < per_page:
+                    break
+                page += 1
+        return files
+
+    def resolve_ref_to_sha(self, repo_full_name: str, ref: str) -> str:
+        """Resolve a branch, tag, or short/long SHA to a commit SHA.
+
+        Resolution order: raw SHA -> branch -> tag -> commit lookup
+        """
+        # fast-path: looks like a full SHA
+        if isinstance(ref, str) and len(ref) == 40 and all(c in "0123456789abcdefABCDEF" for c in ref):
+            return ref
+
+        owner, repo = repo_full_name.split("/", 1)
+        with self._client() as client:
+            # branch
+            try:
+                response = client.get(f"/repos/{owner}/{repo}/git/ref/heads/{ref}")
+                response.raise_for_status()
+                return response.json()["object"]["sha"]
+            except Exception:
+                pass
+
+            # tag
+            try:
+                response = client.get(f"/repos/{owner}/{repo}/git/ref/tags/{ref}")
+                response.raise_for_status()
+                return response.json()["object"]["sha"]
+            except Exception:
+                pass
+
+            # try commit lookup
+            try:
+                response = client.get(f"/repos/{owner}/{repo}/git/commits/{ref}")
+                response.raise_for_status()
+                return response.json()["sha"]
+            except Exception as exc:
+                raise ValueError(f"Unable to resolve ref '{ref}' to a commit SHA: {exc}")
+
+    def get_combined_status_for_ref(self, repo_full_name: str, ref: str) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        sha = self.resolve_ref_to_sha(repo_full_name, ref)
+        with self._client() as client:
+            response = client.get(f"/repos/{owner}/{repo}/commits/{sha}/status")
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "ref": ref,
+                "sha": sha,
+                "state": data.get("state"),
+                "total_count": data.get("total_count", 0),
+                "statuses": data.get("statuses", []),
+            }
+
+    def update_pull_request(
+        self,
+        repo_full_name: str,
+        pull_number: int,
+        title: str | None = None,
+        body: str | None = None,
+        base: str | None = None,
+        state: str | None = None,
+    ) -> dict[str, Any]:
+        owner, repo = repo_full_name.split("/", 1)
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        if base is not None:
+            payload["base"] = base
+        if state is not None:
+            payload["state"] = state
+
+        if not payload:
+            raise ValueError("No update fields provided for pull request")
+
+        with self._client() as client:
+            response = client.patch(f"/repos/{owner}/{repo}/pulls/{pull_number}", json=payload)
             response.raise_for_status()
             return response.json()
 

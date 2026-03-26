@@ -67,6 +67,18 @@ class ListPullRequestFilesInput(BaseModel):
     pull_number: int = Field(description="Pull request number")
     per_page: int = Field(default=100, description="Maximum number of files to return")
 
+
+class ListPullRequestCommitsInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    pull_number: int = Field(description="Pull request number")
+    per_page: int = Field(default=100, description="Maximum number of commits to return per page")
+
+
+class DeleteBranchInput(BaseModel):
+    repo_full_name: str = Field(description="GitHub repository in owner/repo format")
+    branch_name: str = Field(description="Branch name to delete")
+    expected_head_sha: str | None = Field(default=None, description="Optional expected head SHA to verify before deletion")
+
 class CheckExistingOpenPRInput(BaseModel):
     repo_full_name: str = Field(description="GitHub repository in owner/repo format")
     head: str = Field(description="Source branch")

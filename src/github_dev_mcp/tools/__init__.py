@@ -8,6 +8,8 @@ from . import list_repo_tree
 from . import list_pull_requests
 from . import compare_branch_to_base
 from . import list_pull_request_files
+from . import list_pull_request_commits
+from . import delete_branch
 
 __all__ = [
     "read_file",
@@ -20,4 +22,6 @@ __all__ = [
     "list_pull_requests",
     "compare_branch_to_base",
     "list_pull_request_files",
+    "list_pull_request_commits",
+    "delete_branch",
 ]
